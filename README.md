@@ -30,8 +30,5 @@ npx expo start
 - Hệ thống nhân vật đa dạng.
 
 ## Thành viên nhóm
-- [Tên của bạn]
-- [Tên đồng đội]
-
-## Giảng viên hướng dẫn
-- [Tên thầy/cô]
+- Lê Trọng Phúc Hậu
+- Vũ Đình Khánh Long
