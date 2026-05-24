@@ -26,7 +26,7 @@ npx expo start
 
 ## Tính năng chính
 - Chơi game Ma Sói thời gian thực qua Socket.io.
-- Đồ họa 2.5D/3D (Three.js/Fiber).
+- Đồ họa 2.5DD.
 - Hệ thống nhân vật đa dạng.
 
 ## Thành viên nhóm
