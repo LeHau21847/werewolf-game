@@ -2,16 +2,15 @@ class GameClock {
   constructor(io, engine) {
     this.io = io;
     this.engine = engine;
-    this.roomTimers = {}; // { timeout, endTime, currentPhase }
-    
-    // Default Phase Durations (in ms)
+    this.roomTimers = {};
+
     this.DURATIONS = {
-      LOBBY: 0,
-      NIGHT_PHASE: 30000,     // 30s xử lý các kĩ năng
-      DAY_DISCUSSION: 120000, // 2 phút bàn luận
-      VOTING_PHASE: 30000,    // 30s để chốt phiếu
-      EXECUTION_PHASE: 7000,  // BUFFER TIME 7s: Dành cho phim Cinematic (6s) + 1s xả hơi
-      WAIT_HUNTER: 15000,     // 15s chờ phán quyết của hunter
+      LOBBY:            0,
+      NIGHT_PHASE:      45000,   // 45s
+      DAY_DISCUSSION:   90000,   // 90s
+      VOTING_PHASE:     30000,   // 30s
+      EXECUTION_PHASE:  8000,    // 8s cinematic buffer
+      WAIT_HUNTER:      20000,   // 20s
     };
   }
 
@@ -19,49 +18,72 @@ class GameClock {
     if (this.roomTimers[roomId]) {
       clearTimeout(this.roomTimers[roomId].timeout);
     }
-    
+
     const duration = this.DURATIONS[phase] || 10000;
     const endTime = Date.now() + duration;
 
-    // Phát sự kiện tập trung về Client (Tất cả client sẽ lấy endTime này để đếm ngược)
-    this.io.to(roomId).emit('state:PHASE_STARTED', {
-      currentPhase: phase,
-      endTime: endTime
-    });
+    this.io.to(roomId).emit('state:PHASE_STARTED', { currentPhase: phase, endTime });
+    console.log(`[GameClock] Room ${roomId} → ${phase} (${duration}ms)`);
 
-    console.log(`[GameClock] Room ${roomId} started phase ${phase}. Duration: ${duration}ms`);
-
-    // Auto Advance khi Timer kết thúc
-    const timeout = setTimeout(() => {
-      this.autoAdvance(roomId);
-    }, duration);
-
+    const timeout = setTimeout(() => this.autoAdvance(roomId), duration);
     this.roomTimers[roomId] = { timeout, endTime, currentPhase: phase };
   }
 
   autoAdvance(roomId) {
     const room = this.engine.getRoom(roomId);
     if (!room) return;
-    
-    // Giao phó Logic chuyển đổi cho Engine
+
     if (room.phase === 'NIGHT_PHASE') {
-      this.engine.resolveNight(roomId);
+      const { deaths } = this.engine.resolveNight(roomId);
+
+      // Emit night results to everyone
+      this.io.to(roomId).emit('state:NIGHT_RESOLVED', {
+        deaths,
+        players: Object.values(room.players).map(p => p.getPublicState())
+      });
+
+      // Check win after night
+      const win = this.engine.checkWinCondition(roomId);
+      if (win) {
+        this.io.to(roomId).emit('state:GAME_OVER', win);
+        this.clearTimer(roomId);
+        return;
+      }
+
     } else if (room.phase === 'VOTING_PHASE') {
       const result = this.engine.resolveVoting(roomId);
-      // Kết quả tính vote có the trả về TIE (tiến thẳng đếm), hoặc EXECUTED/HUNTER_EXECUTED
+
       if (result.type === 'EXECUTED' || result.type === 'HUNTER_EXECUTED') {
-         // Thông báo có án tử -> chạy Cinematic 6s ở Client
-         this.io.to(roomId).emit('state:PLAYER_EXECUTED', result);
+        this.io.to(roomId).emit('state:PLAYER_EXECUTED', result);
+
+        // Check win after execution (skip for HUNTER — hunter will shoot first)
+        if (result.type === 'EXECUTED') {
+          const win = this.engine.checkWinCondition(roomId);
+          if (win) {
+            // Delay to let execution animation play
+            setTimeout(() => {
+              this.io.to(roomId).emit('state:GAME_OVER', win);
+              this.clearTimer(roomId);
+            }, 5000);
+            return;
+          }
+        }
+
+      } else if (result.type === 'TIE') {
+        this.io.to(roomId).emit('state:VOTE_TIED', result);
       }
+
+    } else if (room.phase === 'EXECUTION_PHASE') {
+      this.engine.handlePhaseTransition(roomId);
+
     } else {
       this.engine.handlePhaseTransition(roomId);
     }
 
-    // Sau khi Engine xử lý, State Phase mới đã đưuọc thiết lập, ta lấy room.phase mới
-    // Bắt đầu nhịp tim mới của hệ thống
+    // Start next phase
     this.startPhase(roomId, room.phase);
   }
-  
+
   clearTimer(roomId) {
     if (this.roomTimers[roomId]) {
       clearTimeout(this.roomTimers[roomId].timeout);

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ma Sói — Werewolf Game</title>
+  <meta name="description" content="Trò chơi Ma Sói trực tuyến nhiều người chơi. Tìm ra Sói Ma và bảo vệ làng!"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐺</text></svg>"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Inter:wght@300;400;500;600&display=swap"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- Background -->
+<div id="bg-canvas"></div>
+
+<!-- Phase Banner -->
+<div id="phase-banner">
+  <div id="phase-name">LOBBY</div>
+  <div id="phase-timer"></div>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast-container"></div>
+
+<!-- Top Controls (Sound + Mic) -->
+<div id="top-controls" style="position:fixed;top:14px;left:20px;z-index:200;display:flex;gap:10px;align-items:center;">
+  <button id="sound-toggle" class="control-btn" onclick="toggleSound()" title="Bật/tắt âm thanh">🔊</button>
+  <button id="mic-btn" class="control-btn mic-btn" onclick="VoiceChat.toggleMic()" title="Bật mic" style="display:none">🎤</button>
+</div>
+
+<!-- Death Announcement Overlay -->
+<div id="death-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;flex-direction:column">
+  <div id="death-overlay-inner" style="max-width:520px;width:90%;text-align:center;animation:fadeSlideIn .5s ease">
+    <div id="death-overlay-icon" style="font-size:72px;margin-bottom:20px">🌅</div>
+    <div style="font-family:'Cinzel',serif;font-size:22px;font-weight:900;color:var(--gold);margin-bottom:24px">Bình Minh Ló Dạng</div>
+    <div id="death-overlay-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px"></div>
+    <button onclick="closDeathOverlay()" class="btn btn-primary">Tiếp Tục →</button>
+    <div id="death-overlay-auto" style="font-size:12px;color:var(--text-muted);margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- Chat Panel (floating) -->
+<div id="chat-panel" style="display:none;position:fixed;bottom:20px;right:20px;z-index:150;width:300px;max-height:400px;background:rgba(13,13,26,0.95);border:1px solid var(--border);border-radius:16px;backdrop-filter:blur(10px);flex-direction:column;overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <span style="font-family:'Cinzel',serif;font-size:12px;color:var(--gold);letter-spacing:2px">💬 CHAT</span>
+    <button onclick="toggleChat()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px">✕</button>
+  </div>
+  <div id="chat-messages" style="flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;max-height:270px"></div>
+  <div style="padding:8px;border-top:1px solid var(--border);display:flex;gap:6px">
+    <input id="chat-input" class="input" style="flex:1;padding:8px 12px;font-size:13px" placeholder="Nhắn tin..." maxlength="200" onkeydown="chatKeydown(event)"/>
+    <button onclick="sendChat()" class="btn btn-primary" style="padding:8px 14px;font-size:13px">➤</button>
+  </div>
+</div>
+<button id="chat-toggle-btn" onclick="toggleChat()" style="display:none;position:fixed;bottom:20px;right:20px;z-index:149;background:linear-gradient(135deg,#8b0000,var(--primary));border:none;color:#fff;border-radius:50%;width:52px;height:52px;font-size:22px;cursor:pointer;box-shadow:0 4px 20px rgba(192,57,43,.4)">💬</button>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: LOGIN
+═══════════════════════════════════════════ -->
+<div id="view-login" class="view active">
+  <div class="login-wrap view-enter">
+    <div class="login-logo">MA SÓI</div>
+    <div class="login-tagline">Werewolf — Trò Chơi Xã Hội</div>
+    <div class="login-card">
+      <input id="input-name" class="input" type="text" placeholder="Tên của bạn..." maxlength="20" autocomplete="off"/>
+      <input id="input-room" class="input" type="text" placeholder="Mã phòng (tạo mới để bỏ trống)..." maxlength="10" autocomplete="off" style="text-transform:uppercase"/>
+      <button id="btn-join" class="btn btn-primary btn-full">🐺 Vào Làng</button>
+      <div class="login-divider">hoặc</div>
+      <button id="btn-create" class="btn btn-ghost btn-full">✨ Tạo Phòng Mới</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: LOBBY
+═══════════════════════════════════════════ -->
+<div id="view-lobby" class="view">
+  <div class="lobby-wrap view-enter" style="max-width:700px;width:100%">
+    <div class="lobby-header">
+      <div class="lobby-title">🏡 Sảnh Chờ</div>
+      <div class="room-code-box">
+        <span class="room-code-label">Mã phòng</span>
+        <span id="room-code-val" class="room-code-val">------</span>
+        <button onclick="copyRoomCode()" class="btn btn-ghost" style="padding:6px 12px;font-size:12px">📋 Copy</button>
+      </div>
+      <p style="margin-top:12px;font-size:13px;color:var(--text-muted)">Chia sẻ mã phòng cho bạn bè để cùng chơi</p>
+    </div>
+
+    <div class="section-title">Người Chơi (<span id="player-count">0</span>/12)</div>
+    <div id="player-grid-lobby" class="player-grid" style="margin-bottom:28px"></div>
+
+    <div class="lobby-actions">
+      <button onclick="CharSystem.openEditor()" class="btn btn-ghost btn-full" style="border-color:var(--gold);color:var(--gold)">✨ Chỉnh Nhân Vật</button>
+      <button id="btn-start" class="btn btn-gold btn-full" style="display:none">⚔️ Bắt Đầu Trận Đấu</button>
+      <div id="lobby-wait-msg" class="lobby-wait-msg">⏳ Chờ chủ phòng bắt đầu...</div>
+      <p style="font-size:12px;color:var(--text-muted);text-align:center">Cần ít nhất 4 người chơi</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: ROLE REVEAL
+═══════════════════════════════════════════ -->
+<div id="view-role-reveal" class="view">
+  <div class="role-reveal-wrap view-enter">
+    <div class="role-reveal-title">✨ Vai Của Bạn ✨</div>
+
+    <div class="role-card-scene" id="role-card-scene" onclick="flipCard()">
+      <div class="role-card" id="role-card">
+        <!-- Back -->
+        <div class="role-card-face role-card-back">
+          <div class="role-card-back-pattern">🐺</div>
+        </div>
+        <!-- Front (filled by JS) -->
+        <div class="role-card-face role-card-front" id="role-card-front"></div>
+      </div>
+    </div>
+
+    <div class="role-reveal-hint" id="reveal-hint">👆 Nhấn vào thẻ để xem vai của bạn</div>
+    <div id="reveal-countdown" style="margin-top:20px;font-family:'Cinzel',serif;font-size:14px;color:var(--text-muted)"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: NIGHT PHASE
+═══════════════════════════════════════════ -->
+<div id="view-night" class="view">
+  <div class="night-header">
+    <div class="night-moon">🌙</div>
+    <div class="night-title">Màn Đêm Buông Xuống</div>
+    <div id="night-subtitle" class="night-subtitle">Đêm bắt đầu...</div>
+  </div>
+
+  <div class="night-action-area">
+    <!-- WOLF -->
+    <div id="night-wolf" style="display:none">
+      <div class="night-action-label">🐺 Chọn Nạn Nhân Đêm Nay</div>
+      <div id="night-wolf-players" class="night-players-grid"></div>
+      <div id="night-wolf-done" class="action-done-msg" style="display:none">
+        <div class="done-icon">✅</div>Đã chọn mục tiêu. Chờ sáng...
+      </div>
+    </div>
+
+    <!-- SEER -->
+    <div id="night-seer" style="display:none">
+      <div id="seer-result-display" class="seer-result-box" style="display:none"></div>
+      <div class="night-action-label">🔮 Điều Tra Một Người</div>
+      <div id="night-seer-players" class="night-players-grid"></div>
+      <div id="night-seer-done" class="action-done-msg" style="display:none">
+        <div class="done-icon">🔮</div>Đã điều tra. Ghi nhớ kết quả!
+      </div>
+    </div>
+
+    <!-- WITCH -->
+    <div id="night-witch" style="display:none">
+      <div id="witch-wolf-info" style="margin-bottom:16px;padding:12px 16px;background:rgba(229,57,53,.1);border:1px solid rgba(229,57,53,.3);border-radius:8px;font-size:14px;color:#ff8a80;text-align:center"></div>
+      <div class="witch-actions">
+        <button id="btn-witch-heal" class="btn btn-ghost" style="border-color:#43a047;color:#81c784">💚 Dùng Bình Cứu</button>
+        <button id="btn-witch-poison" class="btn btn-ghost" style="border-color:#7b1fa2;color:#ce93d8">☠️ Dùng Bình Độc</button>
+      </div>
+      <div id="night-witch-target-label" style="display:none;margin-top:16px">
+        <div class="night-action-label" id="witch-target-action-label"></div>
+        <div id="night-witch-players" class="night-players-grid"></div>
+      </div>
+      <div id="night-witch-done" class="action-done-msg" style="display:none">
+        <div class="done-icon">🧙</div>Đã sử dụng phép thuật!
+      </div>
+    </div>
+
+    <!-- BODYGUARD -->
+    <div id="night-bodyguard" style="display:none">
+      <div class="night-action-label">🛡️ Chọn Người Cần Bảo Vệ</div>
+      <div id="night-bodyguard-players" class="night-players-grid"></div>
+      <div id="night-bodyguard-done" class="action-done-msg" style="display:none">
+        <div class="done-icon">🛡️</div>Đã bảo vệ người chơi!
+      </div>
+    </div>
+
+    <!-- VILLAGER / others -->
+    <div id="night-sleep" style="display:none" class="night-sleeping">
+      <div class="night-sleeping-icon">😴</div>
+      <div style="font-family:'Cinzel',serif;font-size:18px;margin-bottom:8px">Ngủ Ngon Nào...</div>
+      <div style="font-size:14px;color:var(--text-muted)">Hãy tin tưởng vào những người Bảo Vệ làng</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: DAY
+═══════════════════════════════════════════ -->
+<div id="view-day" class="view">
+  <div class="day-header">
+    <div class="day-sun">☀️</div>
+    <div class="day-title">Bình Minh — Thảo Luận</div>
+    <div id="day-night-summary" style="font-size:14px;margin-top:8px;color:var(--text-muted)"></div>
+  </div>
+  <div class="day-body">
+    <div class="day-players-wrap">
+      <div class="day-players-label">Người Chơi</div>
+      <div id="day-players-grid" class="day-players-grid"></div>
+    </div>
+    <div class="day-log">
+      <div class="day-log-title">📜 Nhật Ký Đêm Qua</div>
+      <div id="day-log-list" class="day-log-list"></div>
+      <button onclick="toggleChat()" class="btn btn-ghost" style="width:100%;margin-top:12px;font-size:13px;padding:8px">💬 Mở Chat Thảo Luận</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: VOTING
+═══════════════════════════════════════════ -->
+<div id="view-voting" class="view">
+  <div class="voting-header">
+    <div class="voting-title">⚔️ Bầu Chọn Tử Hình</div>
+    <div class="voting-instruction">Ai là Sói Ma? Hãy bầu chọn người bạn nghi ngờ!</div>
+  </div>
+  <div class="voting-body">
+    <div id="voting-grid" class="voting-grid"></div>
+    <div id="my-vote-display" style="text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted)"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: EXECUTION
+═══════════════════════════════════════════ -->
+<div id="view-execution" class="view">
+  <div id="hanging-anim-container" style="display:none">
+    <div class="rope"></div>
+    <div id="hung-avatar" class="hung-avatar"></div>
+  </div>
+  <div class="execution-wrap view-enter" id="exec-wrap-main">
+    <div id="exec-icon" class="execution-icon">☠️</div>
+    <div id="exec-headline" class="execution-headline">Tử Hình!</div>
+    <div id="exec-name" class="execution-name"></div>
+    <div id="exec-role" class="execution-role"></div>
+    <div id="exec-msg" class="execution-msg"></div>
+
+    <!-- Hunter Shoot UI -->
+    <div id="hunter-shoot-wrap" class="hunter-shoot-wrap" style="display:none">
+      <div class="hunter-shoot-title">🏹 Thợ Săn — Chọn Người Để Bắn!</div>
+      <div id="hunter-shoot-grid" class="night-players-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     VIEW: GAME OVER
+═══════════════════════════════════════════ -->
+<div id="view-gameover" class="view">
+  <div class="gameover-wrap">
+    <div id="gameover-banner" class="gameover-banner">🏆</div>
+    <div id="gameover-title" class="gameover-title"></div>
+    <div id="gameover-msg" class="gameover-msg"></div>
+
+    <div class="gameover-roles-title">Danh Sách Nhân Vật</div>
+    <div id="gameover-grid" class="gameover-grid"></div>
+
+    <button onclick="restartGame()" class="btn btn-gold" style="margin-top:8px">🔄 Chơi Lại</button>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="sounds.js"></script>
+<script src="character.js"></script>
+<script src="webrtc.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
