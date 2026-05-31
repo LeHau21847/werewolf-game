@@ -45,7 +45,7 @@ const ExecutionCinema = ({ player, sourceX, sourceY, onFinish }) => {
       clearTimeout(dissolveTimer);
       clearTimeout(finishTimer);
     };
-  }, []);
+  }, [onFinish]);
 
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">

@@ -114,6 +114,12 @@ body.bg-night #bg-canvas::after {
   animation: toastIn .4s cubic-bezier(0.175, 0.885, 0.32, 1.275), toastOut .4s ease 3.7s forwards;
   backdrop-filter: var(--glass-blur);
 }
+
+#top-controls {
+  right: 20px;
+  left: auto;
+  top: 70px;
+}
 .toast.error { border-color: var(--primary); color: #ff8a80; box-shadow: 0 10px 30px var(--primary-glow); }
 .toast.success { border-color: var(--gold); color: var(--gold); box-shadow: 0 10px 30px var(--gold-glow); }
 .toast.info { border-color: #64b5f6; color: #64b5f6; }
@@ -391,7 +397,7 @@ body.bg-night #bg-canvas::after {
 @media(max-width:500px) {
   #phase-banner { padding: 14px 20px; justify-content: center; }
   #phase-name { display: none; }
-  #top-controls { top: 12px; left: 12px; gap: 8px; }
+  #top-controls { top: 60px; right: 12px; left: auto; gap: 8px; }
   .control-btn { width: 40px; height: 40px; font-size: 18px; border-radius: 10px; }
 }
 

@@ -3,6 +3,8 @@ const GameClock = require('../gameEngine/GameClock');
 
 module.exports = (io) => {
   const clock = new GameClock(io, engine);
+  const phaseScale = Math.max(0.05, Number(process.env.PHASE_SCALE || 1));
+  const scaledDelay = (ms) => Math.max(250, Math.round(ms * phaseScale));
 
   io.on('connection', (socket) => {
     console.log(`[Socket] Connected: ${socket.id}`);

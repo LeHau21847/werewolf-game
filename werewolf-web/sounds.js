@@ -18,7 +18,7 @@ const SFX = (() => {
     lobby:  makeAudio(`${AUDIO_PATH}bgm_lobby.mp3`),
     day:    makeAudio(`${AUDIO_PATH}bgm_day.mp3`),
     // bgm_night.mp3 chưa có → dùng bgm_day làm fallback
-    night:  makeAudio(`${AUDIO_PATH}bgm_night.mp3`),
+    night:  makeAudio(`${AUDIO_PATH}bgm_day.mp3`),
     voting: makeAudio(`${AUDIO_PATH}bgm_voting.mp3`),
   };
 

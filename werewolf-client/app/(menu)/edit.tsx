@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MotiView } from 'moti';
 import { router } from 'expo-router';
-// import useGameStore from '../../src/stores/gameStore'; 
-// import SocketManager from '../../src/services/SocketManager';
+import useGameStore from '../../src/stores/gameStore';
 
 export default function CharacterEditScreen() {
     const [gender, setGender] = useState('MALE'); 
@@ -18,8 +17,7 @@ export default function CharacterEditScreen() {
             outfitColor,
             headgearColor
         };
-        // TODO: useGameStore.getState().setPersonalAppearance(appearance);
-        // TODO: SocketManager.emit('action:UPDATE_APPEARANCE', appearance);
+        useGameStore.getState().setLocalAppearance(appearance);
         alert('Đã lưu Skin cá nhân!');
         router.back();
     };

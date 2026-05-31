@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ImageBackground, Alert } from 'react-native';
 import { MotiView } from 'moti';
 import { router } from 'expo-router';
 import useGameStore from '../../src/stores/gameStore';
@@ -10,14 +10,24 @@ export default function MainScreen() {
     const [isFocused, setIsFocused] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
 
+    const normalizeServerUrl = (value: string) => {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        return trimmed.startsWith('http') ? trimmed : `http://${trimmed}`;
+    };
+
     const handleJoinRoom = () => {
+        const targetIp = normalizeServerUrl(ipAddress);
+        if (!targetIp) {
+            Alert.alert('Thiếu IP server', 'Nhập IP LAN của máy đang chạy server, ví dụ 192.168.1.10:3000.');
+            setIsConnecting(false);
+            return;
+        }
+
         setIsConnecting(true);
-        // Fallback localhost:3000 nếu để trống
-        const targetIp = ipAddress.trim() === '' ? 'http://localhost:3000' : 
-                         ipAddress.startsWith('http') ? ipAddress : `http://${ipAddress}`;
-        
+
         SocketManager.connect(targetIp);
-        
+
         // Timeout chờ connect thành công (Mock flow)
         setTimeout(() => {
             const playerId = 'player_' + Math.floor(Math.random() * 1000);

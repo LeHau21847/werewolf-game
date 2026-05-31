@@ -3,8 +3,9 @@ class GameClock {
     this.io = io;
     this.engine = engine;
     this.roomTimers = {};
+    this.phaseScale = Math.max(0.05, Number(process.env.PHASE_SCALE || 1));
 
-    this.DURATIONS = {
+    this.BASE_DURATIONS = {
       LOBBY:            0,
       NIGHT_PHASE:      45000,   // 45s
       DAY_DISCUSSION:   90000,   // 90s
@@ -14,12 +15,17 @@ class GameClock {
     };
   }
 
+  getDuration(phase) {
+    const base = this.BASE_DURATIONS[phase] || 10000;
+    return Math.max(250, Math.round(base * this.phaseScale));
+  }
+
   startPhase(roomId, phase) {
     if (this.roomTimers[roomId]) {
       clearTimeout(this.roomTimers[roomId].timeout);
     }
 
-    const duration = this.DURATIONS[phase] || 10000;
+    const duration = this.getDuration(phase);
     const endTime = Date.now() + duration;
 
     this.io.to(roomId).emit('state:PHASE_STARTED', { currentPhase: phase, endTime });
@@ -64,7 +70,7 @@ class GameClock {
             setTimeout(() => {
               this.io.to(roomId).emit('state:GAME_OVER', win);
               this.clearTimer(roomId);
-            }, 5000);
+            }, this.getDuration('EXECUTION_PHASE'));
             return;
           }
         }

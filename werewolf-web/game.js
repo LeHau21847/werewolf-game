@@ -133,6 +133,9 @@ function connectSocket() {
     S.isHost = data.hostId === S.playerId;
     if (data.endTime) startTimer(data.endTime, data.phase);
     updateBackground(S.phase);
+    const me = S.players[S.playerId];
+    const alive = !me || me.isAlive !== false;
+    VoiceChat.syncPhase(S.phase, alive);
 
     if (data.phase === 'LOBBY') { showView('lobby'); renderLobby(); SFX.bgm('lobby'); }
     else if (data.phase === 'NIGHT_PHASE') { showView('night'); renderNight(); }
@@ -173,11 +176,9 @@ function connectSocket() {
     S.wolfTargetId = null;
     startTimer(endTime, currentPhase);
     updateBackground(currentPhase);
-    // Show mic button during day phases
-    const micBtn = document.getElementById('mic-btn');
     const me = S.players[S.playerId];
     const alive = !me || me.isAlive !== false;
-    if (micBtn) micBtn.style.display = alive && ['DAY_DISCUSSION','VOTING_PHASE'].includes(currentPhase) ? 'block' : 'none';
+    VoiceChat.syncPhase(currentPhase, alive);
 
     if (currentPhase === 'NIGHT_PHASE') {
       SFX.play('night_start'); SFX.bgm('night');
@@ -206,6 +207,7 @@ function connectSocket() {
       VoiceChat.disable();
       setChatVisible(false);
     }
+    VoiceChat.syncPhase(S.phase, !me || me.isAlive !== false);
     S._pendingDeaths = deaths;
     showDeathOverlay(deaths);
   });
@@ -224,7 +226,7 @@ function connectSocket() {
     setChatVisible(false);
     // If I was executed, lock mic
     if (result.executedId === S.playerId) VoiceChat.disable();
-    document.getElementById('mic-btn').style.display = 'none';
+    VoiceChat.syncPhase('EXECUTION_PHASE', S.players[S.playerId]?.isAlive !== false);
   });
 
   sk.on('state:ACTION_CONFIRMED', () => {
@@ -243,6 +245,9 @@ function connectSocket() {
     playRoleEffect('WOLF', targetId);
     const el = document.getElementById('witch-wolf-info');
     if (el) el.textContent = `🐺 Sói Ma đang tấn công: ${targetName || targetId}`;
+    if (S.phase === 'NIGHT_PHASE' && S.myRole === 'WITCH' && S.witchMode === 'HEAL') {
+      renderWitch();
+    }
   });
 
   sk.on('state:PLAYER_OFFLINE', ({ playerId }) => {
@@ -255,6 +260,7 @@ function connectSocket() {
     SFX.stopAll();
     document.getElementById('phase-banner').classList.remove('show');
     setChatVisible(false);
+    VoiceChat.syncPhase('GAME_OVER', false);
     setTimeout(() => {
       SFX.play(result.winner === 'WEREWOLVES' ? 'lose' : 'win');
     }, 400);
@@ -404,10 +410,10 @@ function renderWitch() {
       S.witchMode === 'HEAL' ? '💚 Chọn người để cứu sống' : '☠️ Chọn người để hạ độc';
     const grid = document.getElementById('night-witch-players');
     const targets = S.witchMode === 'HEAL'
-      ? Object.values(S.players).filter(p => !p.isAlive) // heal dead
+      ? (S.wolfTargetId && S.players[S.wolfTargetId] ? [S.players[S.wolfTargetId]] : [])
       : alivePlayers().filter(p => p.id !== S.playerId); // poison alive
     if (targets.length === 0) {
-      grid.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px">Không có mục tiêu phù hợp</p>';
+      grid.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px">Chưa có nạn nhân bị Sói cắn trong đêm này</p>';
     } else {
       grid.innerHTML = targets.map(p => playerNightBtn(p, 'witch-action')).join('');
     }

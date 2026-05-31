@@ -2,11 +2,11 @@ const io = require('socket.io-client');
 const SERVER_URL = 'http://localhost:3000';
 
 const args = process.argv.slice(2);
-const ROOM_CODE = args[0];
-const NUM_BOTS = parseInt(args[1]) || 7;
+const ROOM_ID = args[0];
+const NUM_BOTS = parseInt(args[1], 10) || 7;
 
-if (!ROOM_CODE) {
-  console.error('Cách dùng: node test-bots.js <MãPhòng> [SốLượngBot]');
+if (!ROOM_ID) {
+  console.error('Cách dùng: node test-bots.js <RoomId> [SoLuongBot]');
   process.exit(1);
 }
 
@@ -14,62 +14,68 @@ const botNames = ['Alice', 'Bob', 'Charlie', 'Dave', 'Eve', 'Frank', 'Grace', 'H
 const bots = [];
 
 function createBot(index) {
-  const socket = io(SERVER_URL);
+  const socket = io(SERVER_URL, { autoConnect: true, reconnectionAttempts: 5 });
   const name = `Bot_${botNames[index] || index}`;
-  
+
   let myId = null;
   let myRole = null;
   let isAlive = true;
+  let players = {};
 
   socket.on('connect', () => {
-    console.log(`[+] ${name} connected (${socket.id})`);
     myId = socket.id;
-    socket.emit('action:JOIN_ROOM', { roomCode: ROOM_CODE, name: name });
+    console.log(`[+] ${name} connected (${myId})`);
+    socket.emit('JOIN_ROOM', { roomId: ROOM_ID, playerId: myId, playerName: name });
   });
 
-  let players = {};
-  
-  socket.on('state:ROOM_STATE', (state) => {
-    if (state.players) players = state.players;
+  socket.on('state:FULL_SYNC', (state) => {
+    players = state.players || {};
+    isAlive = players[myId]?.isAlive !== false;
+  });
+
+  socket.on('state:PLAYER_STATUS', (playerList) => {
+    playerList.forEach(p => { players[p.id] = { ...players[p.id], ...p }; });
   });
 
   socket.on('state:GAME_STARTED', (data) => {
     isAlive = true;
     myRole = null;
-    if (data.players) players = data.players;
+    players = data.players || players;
   });
 
-  socket.on('state:ROLE_REVEAL', ({ role }) => {
+  socket.on('state:ROLE_ASSIGNED', ({ role }) => {
     myRole = role;
-    console.log(`[ROLE] ${name} là ${myRole}`);
+    console.log(`[ROLE] ${name} la ${myRole}`);
   });
 
-  socket.on('state:PHASE_CHANGE', ({ phase, timer }) => {
-    console.log(`[PHASE] ${name} thấy chuyển sang: ${phase}`);
+  socket.on('state:PHASE_STARTED', ({ currentPhase }) => {
+    console.log(`[PHASE] ${name} thay chuyen sang: ${currentPhase}`);
     if (!isAlive) return;
 
-    if (phase === 'NIGHT_PHASE') {
-      setTimeout(() => performNightAction(socket, myRole, players, myId), Math.random() * 2000 + 1000);
-    } else if (phase === 'VOTING_PHASE') {
-      setTimeout(() => performVote(socket, players, myId), Math.random() * 2000 + 1000);
+    if (currentPhase === 'NIGHT_PHASE') {
+      setTimeout(() => performNightAction(socket, myRole, players, myId), Math.random() * 1200 + 600);
+    } else if (currentPhase === 'VOTING_PHASE') {
+      setTimeout(() => performVote(socket, players, myId), Math.random() * 1200 + 600);
+    } else if (currentPhase === 'WAIT_HUNTER' && myRole === 'HUNTER') {
+      setTimeout(() => performHunterShoot(socket, players, myId), 800);
     }
+  });
+
+  socket.on('state:NIGHT_RESOLVED', ({ players: updated }) => {
+    if (Array.isArray(updated)) {
+      updated.forEach(p => { players[p.id] = { ...players[p.id], ...p }; });
+    }
+    isAlive = players[myId]?.isAlive !== false;
   });
 
   socket.on('state:PLAYER_EXECUTED', (data) => {
     if (data.executedId === myId) isAlive = false;
-    if (data.type === 'HUNTER_EXECUTED' && myRole === 'HUNTER') {
-       setTimeout(() => performHunterShoot(socket, players, myId), 1500);
-    }
   });
 
-  socket.on('state:DAY_SUMMARY', ({ deaths }) => {
-    if (deaths && deaths.find(d => d.id === myId)) isAlive = false;
-  });
-  
   socket.on('state:GAME_OVER', () => {
-    console.log(`[END] ${name} thấy GAME OVER.`);
+    console.log(`[END] ${name} thay GAME OVER.`);
   });
-  
+
   socket.on('disconnect', () => {
     console.log(`[-] ${name} disconnected.`);
   });
@@ -99,11 +105,10 @@ function performNightAction(socket, role, players, myId) {
   } else if (role === 'BODYGUARD') {
     socket.emit('action:NIGHT_ACTION', { type: 'BODYGUARD', targetId });
   } else if (role === 'WITCH') {
-    // 50% chance to heal or poison if we could. Let's just randomly poison.
     if (Math.random() > 0.5) {
       socket.emit('action:NIGHT_ACTION', { type: 'WITCH', targetId, skillType: 'POISON' });
     } else {
-      const deadTarget = getRandomTarget(players, myId, true, false); // find dead
+      const deadTarget = getRandomTarget(players, myId, true, false);
       if (deadTarget) socket.emit('action:NIGHT_ACTION', { type: 'WITCH', targetId: deadTarget, skillType: 'HEAL' });
     }
   }
@@ -112,7 +117,7 @@ function performNightAction(socket, role, players, myId) {
 function performVote(socket, players, myId) {
   const targetId = getRandomTarget(players, myId, true, true);
   if (targetId) {
-    socket.emit('action:VOTE', { targetId });
+    socket.emit('action:VOTE_PLAYER', { targetId });
   }
 }
 
@@ -123,8 +128,7 @@ function performHunterShoot(socket, players, myId) {
   }
 }
 
-// Bắt đầu tạo bots
-console.log(`Bắt đầu kết nối ${NUM_BOTS} bots vào phòng ${ROOM_CODE}...`);
+console.log(`Bat dau ket noi ${NUM_BOTS} bots vao phong ${ROOM_ID}...`);
 for (let i = 0; i < NUM_BOTS; i++) {
   setTimeout(() => createBot(i), i * 300);
 }

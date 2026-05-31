@@ -1,20 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-// In a real Expo project we would use expo-haptics
-// import * as Haptics from 'expo-haptics';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
-const NightPhaseUI = ({ myRole, isMyTurn, actionHandler }) => {
-  const [showOptions, setShowOptions] = useState(false);
-
-  useEffect(() => {
-    if (isMyTurn) {
-      // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      console.log('VIBRATE: Wake up, it is your turn');
-      setShowOptions(true);
-    } else {
-      setShowOptions(false);
-    }
-  }, [isMyTurn]);
+const NightPhaseUI = ({ myRole, isMyTurn }) => {
 
   // Anti-Screen Peeking design: Pure black unless it's explicitly your turn.
   if (!isMyTurn) {

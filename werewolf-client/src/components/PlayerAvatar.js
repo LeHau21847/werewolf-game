@@ -6,7 +6,7 @@ import useGameStore from '../stores/gameStore';
  * PlayerAvatar - Optimized with React.memo
  * Principle: Granular Render (Only subscribe to specific player data)
  */
-const PlayerAvatar = memo(({ playerId }) => {
+const PlayerAvatar = memo(function PlayerAvatar({ playerId }) {
   // SUBSCRIBING ONLY to this specific player to prevent excessive re-renders
   const player = useGameStore(state => state.players[playerId]);
   
@@ -57,6 +57,8 @@ const PlayerAvatar = memo(({ playerId }) => {
     </View>
   );
 });
+
+PlayerAvatar.displayName = 'PlayerAvatar';
 
 const styles = StyleSheet.create({
   avatarCircle: {

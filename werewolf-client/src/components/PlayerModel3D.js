@@ -1,5 +1,5 @@
+/* eslint-disable react/no-unknown-property */
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import useGameStore from '../stores/gameStore';
 

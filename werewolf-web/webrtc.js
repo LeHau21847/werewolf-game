@@ -5,11 +5,12 @@ const VoiceChat = (() => {
   const peers = {};        // socketId -> { pc: RTCPeerConnection, playerId }
   let localStream = null;
   let socket = null;
-  let mySocketId = null;
   let enabled = false;
   let muted = false;
   let vadInterval = null;
   let canUseVoice = true;  // false when dead
+
+  const VOICE_PHASES = new Set(['DAY_DISCUSSION', 'VOTING_PHASE']);
 
   const RTC_CONFIG = {
     iceServers: [
@@ -21,7 +22,6 @@ const VoiceChat = (() => {
   // ── INIT (call once after socket connects) ──
   function init(sk) {
     socket = sk;
-    mySocketId = sk.id;
 
     sk.on('signal:PEER_JOINED', ({ socketId, playerId }) => {
       if (!enabled || !localStream) return;
@@ -58,10 +58,38 @@ const VoiceChat = (() => {
     });
   }
 
+  function syncPhase(phase, isAlive = true) {
+    currentPhase = phase;
+    const btn = document.getElementById('mic-btn');
+    const canSpeakNow = canUseVoice && isAlive && VOICE_PHASES.has(phase);
+
+    if (!isAlive) {
+      disable();
+      if (btn) btn.style.display = 'none';
+      return;
+    }
+
+    if (!canSpeakNow && enabled) {
+      stop();
+    }
+
+    if (btn) {
+      btn.style.display = canSpeakNow ? 'block' : 'none';
+    }
+
+    if (canSpeakNow) {
+      updateMicBtn();
+    }
+  }
+
   // ── START MIC ───────────────────────────────
   async function start() {
     if (!canUseVoice) { showMicToast('❌ Bạn đã bị loại — không thể dùng mic!'); return false; }
     if (enabled) return true;
+    if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      showMicToast('❌ Mic cần HTTPS hoặc localhost. Nếu mở bằng IP LAN trên điện thoại, trình duyệt có thể chặn quyền mic.');
+      return false;
+    }
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       enabled = true;
@@ -184,14 +212,24 @@ const VoiceChat = (() => {
   function updateMicBtn() {
     const btn = document.getElementById('mic-btn');
     if (!btn) return;
-    if (!enabled) { btn.textContent = '🎤'; btn.title = 'Bật mic'; btn.className = 'mic-btn'; }
-    else if (muted) { btn.textContent = '🔇'; btn.title = 'Bỏ tắt tiếng'; btn.className = 'mic-btn muted'; }
-    else { btn.textContent = '🎙️'; btn.title = 'Tắt mic'; btn.className = 'mic-btn active'; }
+    btn.className = 'control-btn mic-btn';
+    if (!enabled) {
+      btn.textContent = '🎤';
+      btn.title = 'Bật mic';
+    } else if (muted) {
+      btn.textContent = '🔇';
+      btn.title = 'Bỏ tắt tiếng';
+      btn.classList.add('muted');
+    } else {
+      btn.textContent = '🎙️';
+      btn.title = 'Tắt mic';
+      btn.classList.add('active');
+    }
   }
 
   function showMicToast(msg) {
     if (typeof toast === 'function') toast(msg, 'info');
   }
 
-  return { init, start, stop, toggleMic, disable, isEnabled: () => enabled };
+  return { init, start, stop, toggleMic, disable, syncPhase, isEnabled: () => enabled };
 })();

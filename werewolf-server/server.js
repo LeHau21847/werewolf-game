@@ -6,6 +6,14 @@ const path = require('path');
 
 const socketHandler = require('./sockets/socketHandler');
 
+const phaseScaleArg = process.argv.find(arg => arg.startsWith('--phase-scale='));
+const phaseScaleValue = phaseScaleArg
+  ? Number(phaseScaleArg.split('=')[1])
+  : Number(process.argv[2]);
+if (Number.isFinite(phaseScaleValue) && phaseScaleValue > 0) {
+  process.env.PHASE_SCALE = String(phaseScaleValue);
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
