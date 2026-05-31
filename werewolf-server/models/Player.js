@@ -1,7 +1,8 @@
 class Player {
-  constructor(id, name, role = 'VILLAGER') {
+  constructor(id, name, role = 'VILLAGER', appearance = null) {
     this.id = id;
     this.name = name;
+    this.appearance = appearance;
     this.isAlive = true;
     this.role = role;
     this.isOffline = false;
@@ -26,6 +27,7 @@ class Player {
       isAlive: this.isAlive,
       isOffline: this.isOffline,
       deathReason: this.deathReason,
+      appearance: this.appearance
       // Status effects are usually hidden from public during night, but revealed if dead
     };
   }

@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import useGameStore from '../stores/gameStore';
+import AvatarIcon from './AvatarIcon';
 
 /**
  * PlayerAvatar - Optimized with React.memo
@@ -33,19 +34,7 @@ const PlayerAvatar = memo(function PlayerAvatar({ playerId }) {
         !player.isAlive && styles.deadAvatar,
         isMostVoted && styles.mostVotedGlow // Highlight Target
     ]}>
-      {/* Tính năng mới: Layered Rendering Đồ họa */}
-      <View style={styles.imagePlaceholder}>
-          <View style={[
-              styles.baseBody, 
-              { 
-                  backgroundColor: appearance.bodyColor,
-                  borderRadius: appearance.gender === 'FEMALE' ? 50 : 10
-              }
-          ]}>
-              <View style={[styles.outfitLayer, { borderBottomColor: appearance.outfitColor }]} />
-              <View style={[styles.headgearLayer, { backgroundColor: appearance.headgearColor }]} />
-          </View>
-      </View>
+      <AvatarIcon appearance={appearance} size={56} />
       
       <Text style={styles.playerName} numberOfLines={1}>{player.name}</Text>
       

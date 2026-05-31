@@ -26,6 +26,14 @@ function createBot(index) {
     myId = socket.id;
     console.log(`[+] ${name} connected (${myId})`);
     socket.emit('JOIN_ROOM', { roomId: ROOM_ID, playerId: myId, playerName: name });
+
+    // Host bot starts the game automatically after 3 seconds
+    if (index === 0) {
+      setTimeout(() => {
+        console.log(`[HOST] ${name} is starting the game...`);
+        socket.emit('action:START_GAME');
+      }, 3000);
+    }
   });
 
   socket.on('state:FULL_SYNC', (state) => {
@@ -39,7 +47,6 @@ function createBot(index) {
 
   socket.on('state:GAME_STARTED', (data) => {
     isAlive = true;
-    myRole = null;
     players = data.players || players;
   });
 
@@ -49,11 +56,13 @@ function createBot(index) {
   });
 
   socket.on('state:PHASE_STARTED', ({ currentPhase }) => {
-    console.log(`[PHASE] ${name} thay chuyen sang: ${currentPhase}`);
+    console.log(`[PHASE] ${name} thay chuyen sang: ${currentPhase}. isAlive=${isAlive}`);
     if (!isAlive) return;
 
     if (currentPhase === 'NIGHT_PHASE') {
-      setTimeout(() => performNightAction(socket, myRole, players, myId), Math.random() * 1200 + 600);
+      const delay = Math.random() * 1200 + 600;
+      console.log(`[BOT ${name}] will act in ${delay.toFixed(0)}ms`);
+      setTimeout(() => performNightAction(socket, myRole, players, myId, name), delay);
     } else if (currentPhase === 'VOTING_PHASE') {
       setTimeout(() => performVote(socket, players, myId), Math.random() * 1200 + 600);
     } else if (currentPhase === 'WAIT_HUNTER' && myRole === 'HUNTER') {
@@ -80,6 +89,10 @@ function createBot(index) {
     console.log(`[-] ${name} disconnected.`);
   });
 
+  socket.on('state:ERROR', (data) => {
+    console.log(`[ERROR] ${name}: ${data.message}`);
+  });
+
   bots.push({ socket, name });
 }
 
@@ -93,11 +106,12 @@ function getRandomTarget(players, myId, excludeSelf = true, onlyAlive = true) {
   return candidates[Math.floor(Math.random() * candidates.length)].id;
 }
 
-function performNightAction(socket, role, players, myId) {
-  if (!role) return;
+function performNightAction(socket, role, players, myId, name) {
+  if (!role) { console.log(`[BOT ${name}] No role`); return; }
   const targetId = getRandomTarget(players, myId, true, true);
-  if (!targetId) return;
+  if (!targetId) { console.log(`[BOT ${name}] No target for night action`); return; }
 
+  console.log(`[BOT ${name}] Emit night action. Role: ${role}, Target: ${targetId}`);
   if (role === 'WOLF') {
     socket.emit('action:NIGHT_ACTION', { type: 'WOLF', targetId });
   } else if (role === 'SEER') {

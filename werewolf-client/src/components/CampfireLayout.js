@@ -55,7 +55,7 @@ const CampfireLayout = () => {
         {/* Mặt đất nền - Nơi nhận đổ bóng từ các nhân vật */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
           <planeGeometry args={[100, 100]} />
-          <meshStandardMaterial color="#1a1c1e" roughness={0.9} />
+          <meshLambertMaterial color="#1a1c1e" />
         </mesh>
 
         {/* Vật thể mồi lửa (Đại diện cho đống lửa chưa có model) */}

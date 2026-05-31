@@ -1,77 +1,122 @@
 import { create } from 'zustand';
 
-// Zero-Trust & Performance First: Flat Object
-const useGameStore = create((set) => ({
-  players: {}, // RECORD<playerId, PlayerData>
-  votes: {},   // Bắt buộc phải có giá trị khởi tạo trống để tránh crash Object.entries
-  
-  // Dữ liệu trang phục/nhân dạng cá nhân (Lưu tạm trên Local)
-  localPlayerAppearance: {
-    gender: 'MALE', 
-    bodyColor: '#ffdbac',
-    outfitColor: '#3c5e8b',
-    headgearColor: '#8b4513'
-  },
-  
-  isConnected: true, // Auto assumes true unless disconnected triggers
+const useGameStore = create((set, get) => ({
+  // ─── Connection ───
+  isConnected: true,
   setIsConnected: (status) => set({ isConnected: status }),
 
-  setLocalAppearance: (appearance) => set({ localPlayerAppearance: appearance }),
-  
-  // Method to hydrate mock data for UI testing (20 players)
-  seedMockPlayers: () => {
-    const mockData = {};
-    for (let i = 1; i <= 20; i++) {
-      const id = `player_${i}`;
-      mockData[id] = {
-        id,
-        name: `Người Chơi ${i}`,
-        isAlive: true,
-        isOffline: false,
-        role: 'VILLAGER', 
-        votes: 0,
-        deathReason: null,
-        appearance: {
-          gender: i % 2 === 0 ? 'FEMALE' : 'MALE',
-          bodyColor: '#ffdbac',
-          outfitColor: i % 3 === 0 ? '#8b0000' : '#3c5e8b',
-          headgearColor: i % 4 === 0 ? '#000' : '#8b4513'
-        }
-      };
-    }
-    set({ players: mockData });
-  },
+  // ─── Room ─────────
+  phase: 'LOBBY',
+  roomId: '',
+  hostId: null,
+  localPlayerId: '',
+  localPlayerName: '',
 
-  // Authoritative update from Server - Ensure it's treated as a map
+  // ─── Players ──────
+  players: {},
+
+  // ─── My Role ──────
+  localRole: null,
+  localRoleData: null,
+
+  // ─── Night state ──
+  nightActionDone: false,
+  wolfTargetId: null,
+  wolfTargetName: null,
+  seerChecked: false,
+  witchUsedHeal: false,
+  witchUsedPoison: false,
+
+  // ─── Pending deaths (to show at day start) ──
+  pendingDeaths: [],
+
+  // ─── Votes ────────
+  votes: {},
+
+  // ─── Phase timer ──
+  phaseEndTime: null,
+
+  // ─── Appearance ───
+  localPlayerAppearance: {
+    gender: 'MALE',
+    bodyColor: '#ffdbac',
+    outfitColor: '#3c5e8b',
+    headgearColor: '#8b4513',
+    outfitType: 'TSHIRT',
+    headgearType: 'HAIR',
+  },
+  setLocalAppearance: (appearance) => set({ localPlayerAppearance: appearance }),
+
+  // ─── Setters ──────
+  setLocalPlayer: (id, name, role, roleData) => set({
+    localPlayerId: id,
+    localPlayerName: name,
+    localRole: role || get().localRole,
+    localRoleData: roleData || get().localRoleData,
+  }),
+
+  syncState: (data) => set(state => ({
+    phase: data.phase || state.phase,
+    roomId: data.roomId || state.roomId,
+    hostId: data.hostId !== undefined ? data.hostId : state.hostId,
+    phaseEndTime: data.endTime || null,
+  })),
+
   syncPlayers: (serverPlayers) => {
     if (Array.isArray(serverPlayers)) {
-      const playerMap = {};
-      serverPlayers.forEach(p => { playerMap[p.id] = p; });
-      set({ players: playerMap });
+      const map = {};
+      serverPlayers.forEach(p => { map[p.id] = p; });
+      set({ players: map });
     } else {
       set({ players: serverPlayers });
     }
   },
 
-  updateVotes: (newVotes) => set((state) => {
-    // Immutable update: Map over existing players and create new objects
+  mergePlayer: (p) => set(state => ({
+    players: { ...state.players, [p.id]: { ...(state.players[p.id] || {}), ...p } }
+  })),
+
+  updateVotes: (newVotes) => set(state => {
     const newPlayers = {};
     Object.keys(state.players).forEach(id => {
       newPlayers[id] = { ...state.players[id], votes: 0 };
     });
-
-    // Tally up using the new objects
     Object.values(newVotes).forEach(targetId => {
-      if (newPlayers[targetId]) {
-        newPlayers[targetId].votes += 1;
-      }
+      if (newPlayers[targetId]) newPlayers[targetId].votes += 1;
     });
+    return { votes: { ...newVotes }, players: newPlayers };
+  }),
 
-    return { 
-      votes: { ...newVotes },
-      players: newPlayers
-    };
-  })
+  setNightActionDone: () => set({ nightActionDone: true }),
+  setSeerChecked: () => set({ seerChecked: true }),
+  setWolfTarget: (id, name) => set({ wolfTargetId: id, wolfTargetName: name }),
+  setWitchUsedHeal: () => set({ witchUsedHeal: true }),
+  setWitchUsedPoison: () => set({ witchUsedPoison: true }),
+  setPendingDeaths: (deaths) => set({ pendingDeaths: deaths }),
+
+  resetNightState: () => set({
+    nightActionDone: false,
+    wolfTargetId: null,
+    wolfTargetName: null,
+    seerChecked: false,
+  }),
+
+  resetAll: () => set({
+    phase: 'LOBBY',
+    roomId: '',
+    hostId: null,
+    players: {},
+    localRole: null,
+    localRoleData: null,
+    nightActionDone: false,
+    wolfTargetId: null,
+    wolfTargetName: null,
+    seerChecked: false,
+    witchUsedHeal: false,
+    witchUsedPoison: false,
+    pendingDeaths: [],
+    votes: {},
+  }),
 }));
 
 export default useGameStore;

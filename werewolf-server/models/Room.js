@@ -25,12 +25,13 @@ class Room {
     });
   }
 
-  addPlayer(playerId, name, socketId) {
+  addPlayer(playerId, name, socketId, appearance) {
     if (this.players[playerId]) {
       this.players[playerId].isOffline = false;
       this.players[playerId].socketId = socketId;
+      if (appearance) this.players[playerId].appearance = appearance;
     } else {
-      const player = new Player(playerId, name, 'VILLAGER');
+      const player = new Player(playerId, name, 'VILLAGER', appearance);
       player.socketId = socketId;
       this.players[playerId] = player;
       if (!this.hostId) this.hostId = playerId;

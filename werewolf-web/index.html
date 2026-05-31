@@ -25,9 +25,10 @@
 <div id="toast-container"></div>
 
 <!-- Top Controls (Sound + Mic) -->
-<div id="top-controls" style="position:fixed;top:70px;right:20px;left:auto;z-index:200;display:flex;gap:10px;align-items:center;">
+<div id="top-controls">
   <button id="sound-toggle" class="control-btn" onclick="toggleSound()" title="Bật/tắt âm thanh">🔊</button>
   <button id="mic-btn" class="control-btn mic-btn" onclick="VoiceChat.toggleMic()" title="Bật mic" style="display:none">🎤</button>
+  <button id="leave-btn" class="control-btn" onclick="leaveGame()" title="Thoát phòng" style="display:none;background:rgba(180,30,30,0.7);border-color:rgba(220,60,60,0.6);">🚪</button>
 </div>
 
 <!-- Death Announcement Overlay -->
@@ -53,7 +54,7 @@
     <button onclick="sendChat()" class="btn btn-primary" style="padding:8px 14px;font-size:13px">➤</button>
   </div>
 </div>
-<button id="chat-toggle-btn" onclick="toggleChat()" style="display:none;position:fixed;bottom:20px;right:20px;z-index:149;background:linear-gradient(135deg,#8b0000,var(--primary));border:none;color:#fff;border-radius:50%;width:52px;height:52px;font-size:22px;cursor:pointer;box-shadow:0 4px 20px rgba(192,57,43,.4)">💬</button>
+<button id="chat-toggle-btn" onclick="toggleChat()" style="display:none;">💬</button>
 
 <!-- ═══════════════════════════════════════════
      VIEW: LOGIN
@@ -95,6 +96,7 @@
       <button id="btn-start" class="btn btn-gold btn-full" style="display:none">⚔️ Bắt Đầu Trận Đấu</button>
       <div id="lobby-wait-msg" class="lobby-wait-msg">⏳ Chờ chủ phòng bắt đầu...</div>
       <p style="font-size:12px;color:var(--text-muted);text-align:center">Cần ít nhất 4 người chơi</p>
+      <button onclick="leaveGame()" class="btn btn-ghost btn-full" style="margin-top:8px;border-color:rgba(220,60,60,0.5);color:#ff6b6b;font-size:13px">🚪 Thoát Phòng</button>
     </div>
   </div>
 </div>
@@ -203,7 +205,6 @@
     <div class="day-log">
       <div class="day-log-title">📜 Nhật Ký Đêm Qua</div>
       <div id="day-log-list" class="day-log-list"></div>
-      <button onclick="toggleChat()" class="btn btn-ghost" style="width:100%;margin-top:12px;font-size:13px;padding:8px">💬 Mở Chat Thảo Luận</button>
     </div>
   </div>
 </div>

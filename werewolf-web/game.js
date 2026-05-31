@@ -136,6 +136,8 @@ function connectSocket() {
     const me = S.players[S.playerId];
     const alive = !me || me.isAlive !== false;
     VoiceChat.syncPhase(S.phase, alive);
+    // Show leave button whenever we are in a room
+    document.getElementById('leave-btn').style.display = 'flex';
 
     if (data.phase === 'LOBBY') { showView('lobby'); renderLobby(); SFX.bgm('lobby'); }
     else if (data.phase === 'NIGHT_PHASE') { showView('night'); renderNight(); }
@@ -276,6 +278,18 @@ function connectSocket() {
 
   sk.on('state:ERROR', ({ message }) => toast('❌ ' + message, 'error'));
 
+  sk.on('state:KICKED', ({ reason }) => {
+    toast('🥾 Bạn đã bị chủ phòng kick!', 'error');
+    if (S.socket) { S.socket.disconnect(); S.socket = null; }
+    S.playerId = null; S.roomId = null; S.players = {}; S.phase = 'LOGIN';
+    clearInterval(S.timerInterval);
+    document.getElementById('leave-btn').style.display = 'none';
+    document.getElementById('phase-banner').classList.remove('show');
+    document.getElementById('phase-banner').style.display = 'none';
+    showView('login');
+    updateBackground('LOGIN');
+  });
+
   sk.connect();
 }
 
@@ -290,7 +304,9 @@ function renderLobby() {
     const char = p.character || null;
     const avatar = char ? CharSystem.renderAvatar(char, 'md') : `<span style="font-size:36px">${getAvatar(p.id)}</span>`;
     const isHost = idx === 0;
+    const canKick = S.isHost && p.id !== S.playerId;
     return `<div class="lobby-player-card ${isHost ? 'host' : ''}" data-player-id="${p.id}">
+      ${canKick ? `<button class="kick-btn" onclick="kickPlayer('${p.id}','${esc(p.name)}')" title="Kick khỏi phòng">✕</button>` : ''}
       <div class="lobby-player-avatar">${avatar}</div>
       <div class="lobby-player-name">${esc(p.name)}</div>
       <div class="lobby-player-status">${p.isOffline ? '🔴 Offline' : '🟢 Online'}${isHost ? ' ★ Chủ phòng' : ''}</div>
@@ -636,6 +652,33 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s || 
 function copyRoomCode() { navigator.clipboard.writeText(S.roomId).then(() => toast('📋 Đã copy mã phòng!', 'success')); }
 function restartGame() { location.reload(); }
 function toggleSound() { SFX.toggle(); }
+
+function leaveGame() {
+  if (!confirm('🚪 Bạn có chắc muốn thoát phòng không?')) return;
+  if (S.socket) { S.socket.disconnect(); S.socket = null; }
+  // Reset state
+  S.playerId = null; S.playerName = null; S.roomId = null;
+  S.isHost = false; S.myRole = null; S.players = {}; S.phase = 'LOGIN';
+  clearInterval(S.timerInterval);
+  // Hide leave button, hide phase banner
+  document.getElementById('leave-btn').style.display = 'none';
+  document.getElementById('phase-banner').classList.remove('show');
+  document.getElementById('phase-banner').style.display = 'none';
+  document.getElementById('chat-panel').style.display = 'none';
+  document.getElementById('chat-toggle-btn').style.display = 'none';
+  // Back to login
+  showView('login');
+  updateBackground('LOGIN');
+  SFX.bgm('lobby');
+  toast('🏠 Đã thoát phòng!', 'info');
+}
+
+function kickPlayer(targetId, targetName) {
+  if (!S.isHost) return;
+  if (!confirm(`Kick "${targetName}" ra khỏi phòng?`)) return;
+  S.socket.emit('action:KICK_PLAYER', { targetId });
+  toast(`🥾 Đã kick ${targetName}!`, 'info');
+}
 
 // ── CHARACTER SAVE CALLBACK ───────────────────
 function onCharacterSaved(char) {

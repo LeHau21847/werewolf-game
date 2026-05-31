@@ -10,12 +10,12 @@ module.exports = (io) => {
     console.log(`[Socket] Connected: ${socket.id}`);
 
     // ─── JOIN / REJOIN ──────────────────────────────────────────────────────
-    socket.on('JOIN_ROOM', ({ roomId, playerId, playerName }) => {
+    socket.on('JOIN_ROOM', ({ roomId, playerId, playerName, appearance }) => {
       if (!roomId || !playerId || !playerName) return;
 
       socket.join(roomId);
       const room = engine.getRoom(roomId);
-      room.addPlayer(playerId, playerName, socket.id);
+      room.addPlayer(playerId, playerName, socket.id, appearance);
       socket.playerId = playerId;
       socket.roomId = roomId;
 
@@ -38,6 +38,34 @@ module.exports = (io) => {
       // Broadcast updated player list to room
       io.to(roomId).emit('state:PLAYER_STATUS', Object.values(room.players).map(p => p.getPublicState()));
     });
+
+    // ─── KICK PLAYER ────────────────────────────────────────────────────────
+    socket.on('action:KICK_PLAYER', ({ targetId }) => {
+      const { roomId, playerId } = socket;
+      if (!roomId || !playerId) return;
+      const room = engine.getRoom(roomId);
+      if (!room || room.hostId !== playerId) return; // Only host can kick
+      if (room.phase !== 'LOBBY') return; // Only kick in lobby
+
+      const target = room.players[targetId];
+      if (!target) return;
+
+      // Notify the kicked player
+      const targetSocket = [...io.sockets.sockets.values()].find(s => s.playerId === targetId);
+      if (targetSocket) {
+        targetSocket.emit('state:KICKED', { reason: 'Bị chủ phòng kick' });
+        targetSocket.leave(roomId);
+      }
+
+      // Remove from room
+      delete room.players[targetId];
+      console.log(`[Socket] ${playerId} kicked ${targetId} from ${roomId}`);
+
+      // Broadcast updated list
+      io.to(roomId).emit('state:PLAYER_STATUS', Object.values(room.players).map(p => p.getPublicState()));
+      io.to(roomId).emit('state:FULL_SYNC', room.getSyncState());
+    });
+
 
     // ─── START GAME ─────────────────────────────────────────────────────────
     socket.on('action:START_GAME', () => {
